@@ -72,8 +72,8 @@ class CFaries {
     
     CFaries() {
       //sanity check:
-      if( FRAMES_TO_MAX > FRAMES_TO_NEXT*getPoints()/2 )
-        error(F("You misconfigured the faires!"));
+      //if( FRAMES_TO_MAX > FRAMES_TO_NEXT*getPoints()/2 )
+      //  error(F("You misconfigured the faires!"));
       
       //setup the array:
       for(uint8_t i = 0; i < getPoints(); i++ )
@@ -110,7 +110,7 @@ class CFaries {
 };
 
 CFaries<28> faries;
-//CFaries<4> sparkles;
+CFaries<4> sparkles;
 
 
 void setup() {
@@ -169,59 +169,16 @@ void loop() {
 
   fill_solid(leds, NUM_LEDS, CHSV(colour.h, 255, 62)); //minimum colour
   faries.consider(colour);
-  //sparkles.consider(CHSV(colour.h, 128, 255));
+  sparkles.consider(CHSV(colour.h, 128, 255));
   FastLED.show();
   //chase(colour);  
-  delay(10);  
+  delay(50);  
   
 }
 
 
 
 /*
-static void randomFairyInit() {
-  for(uint8_t i = 0; i < POINTS; i++ )
-    points[i] = random(0, NUM_LEDS);
-}
-
-
-
-static void consideredFairy(CHSV c) {
-  static uint16_t sequence = 0;
-
-  fill_solid(leds, NUM_LEDS, CHSV(c.h, 255, 62)); //minimum colour
-
-  //Sanity check to catch terrible config. Should never happen.
-
-  
-  CHSV dim;
-  uint8_t sat = 255;
-  
-  for(uint8_t i=0;i<POINTS;i++) {
-    if( i < POINTS/8 ) sat = 128; else sat = 255;
-    uint16_t seqi = sequence; //how long i has been alive.
-    seqi = (sequence + i*FRAMES_TO_NEXT) % (FRAMES_TO_NEXT*POINTS);
-    if( seqi == 0 )
-      points[i] = random(0, NUM_LEDS);
-             
-    if( seqi < FRAMES_TO_MAX ) {
-      dim = CHSV(c.h, sat, map(seqi, 0, FRAMES_TO_MAX, 16, 255 ) ); 
-      //strip.setPixelColor( points[i], dim.red, dim.green, dim.blue );
-      leds[points[i]] |= dim;
-    } else if( seqi > FRAMES_TO_NEXT * POINTS - FRAMES_TO_MAX ) {
-      dim = CHSV(c.h, sat,  map(seqi, FRAMES_TO_NEXT * POINTS - FRAMES_TO_MAX, FRAMES_TO_NEXT * POINTS, 255, 16 ) );       
-      //strip.setPixelColor( points[i], dim.red, dim.green, dim.blue ); 
-      leds[points[i]] |= dim;
-    } else {
-      //strip.setPixelColor( points[i], c.red, c.green, c.blue );
-      leds[points[i]] |= CHSV( c.h, sat, 255);
-    }    
-  }
-
-  sequence++;
-  if( sequence == FRAMES_TO_NEXT*POINTS )
-    sequence = 0;
-}
 
 
 //Note that the strip is 2xWIDTH wide, half faded in, half faded out.
