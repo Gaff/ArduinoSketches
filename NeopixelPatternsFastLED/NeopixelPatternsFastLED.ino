@@ -130,7 +130,7 @@ void setup() {
 
   memset(leds, 0, sizeof( leds) );
   FastLED.addLeds<CHIPSET, LED_PIN, COLOR_ORDER>(leds, NUM_LEDS).setCorrection( TypicalLEDStrip );
-  FastLED.setBrightness(80);
+  FastLED.setBrightness(100);
   //coming in the next version!
   //FastLED.setMaxPowerInVoltsAndMilliamps(5, 500);
   FastLED.show();    
@@ -146,11 +146,11 @@ void setup() {
 CHSV colour = {108, 255, 255 };
 // the loop function runs over and over again forever
 void loop() {  
-  
+
   static uint8_t index = 0;
   static int8_t inc = 1;
-  Serial.print("Loop: ");
-  Serial.println(micros());
+  //Serial.print("Loop: ");
+  //Serial.println(micros());
 
   if (canRead())
   {
@@ -161,16 +161,83 @@ void loop() {
   }    
 
   fill_solid(leds, NUM_LEDS, CHSV(colour.h, 255, WASH)); //minimum colour  
+  
   //faries.consider(colour);
   //sparkles.consider(CHSV(colour.h, 128, 255));
-  
-  chase(colour);    
+  //FastLED.delay(50);  //for the faries
+
+  paletteBeat( colour );
+  //wave(colour);
+  //chase(colour);
+        
   FastLED.show();
   
-  //FastLED.delay(10);  
+  
   
 }
 
+
+
+static void paletteBeat(CHSV c) {
+
+    CRGBPalette16 currentPalette = 
+                                   CRGBPalette16(
+                                   CHSV(c.h, c.s, WASH),  CHSV(c.h, c.s, 128),  CHSV(c.h, c.s, 200),  CHSV(c.h, c.s, 128),
+                                   CHSV(c.h, c.s, 255),   CHSV(c.h, c.s, 255),  CHSV(c.h, c.s, 255),  CHSV(c.h, c.s, 128),
+                                   CHSV(c.h, c.s, WASH),  CHSV(c.h, c.s, WASH),  CHSV(c.h, c.s, WASH),   CHSV(c.h, c.s, WASH),
+                                   CHSV(c.h, c.s, WASH),  CHSV(c.h, c.s, WASH),  CHSV(c.h, c.s, WASH),   CHSV(c.h, c.s, WASH) ); 
+
+   static uint8_t phase = 0;
+   
+   CRGB theColor = ColorFromPalette(currentPalette, phase, 255, LINEARBLEND);   
+   Serial.print("paletteBeat: ");
+   Serial.print(theColor.r);
+   Serial.print(" ");
+   Serial.print(theColor.g);
+   Serial.print(" ");
+   Serial.println(theColor.b);
+
+   fill_solid( leds, NUM_LEDS, theColor );
+   phase++;
+}
+
+static void beat(CHSV c) {
+
+  //So I'm not sue how one should un-FFT a wave, but here goes:
+  
+  //uint16_t w1 = beatsin16(60, 0, 66535, 0, 0,  );
+  //uint16_t w2 = beatsin16(180, 0, 66535, 0, 0,  );
+  
+  fill_solid( leds, NUM_LEDS, CHSV( c.h, c.s, beatsin8( 80 ) ) );
+}
+
+static void wave( CHSV c ) {
+
+  static int phase;  
+  static int8_t inc = 1;
+  
+  for(uint8_t j = 0; j<NUM_LEDS;j++) {
+    leds[j] |= CHSV(c.h, c.s,  beatsin8( 120, WASH, 255, map(j, 0, NUM_LEDS, 0, 255*5) ));
+  }  
+
+  switch( random(0, NUM_LEDS * 3) )
+  {
+    case 0:
+      inc = 1;
+      break;
+    case 1:
+      inc = -1;
+      break;
+    case 2:
+      inc = 2;
+      break;
+    case 3:
+      inc = -2;
+      break;
+  }
+  phase+=inc; 
+  
+}
 
 
 //Note that the strip is 2xWIDTH wide, half faded in, half faded out.
@@ -181,7 +248,7 @@ static void chase(CHSV c) {
   static int8_t inc = 1;
 
   uint16_t j;
-  
+ 
   for(j = 0; j<WIDTH; j++ ) {        
     leds[Pos(i+j)] |= CHSV(c.h, c.s, map(j, 0, WIDTH, WASH, 255) );
   }
