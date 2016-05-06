@@ -49,13 +49,7 @@ Adafruit_BluefruitLE_SPI ble(BLUEFRUIT_SPI_CS, BLUEFRUIT_SPI_IRQ, BLUEFRUIT_SPI_
 #define CHIPSET     WS2811
 CRGB leds[NUM_LEDS];
 
-
-//#define POINTS 32
-//static uint8_t points[POINTS];
-
-#define FRAMES_TO_MAX 16
-#define FRAMES_TO_NEXT 4
-
+#define WASH 62 //should be something light 40/brightness
 
 void error(const __FlashStringHelper *err) {
   Serial.println(err);
@@ -103,7 +97,7 @@ class CFaries {
       }
     
       sequence++;
-      if( sequence == FRAMES_TO_NEXT*Tpoints )
+      if( sequence == Tframes_to_next*Tpoints )
         sequence = 0;      
     }
 };
@@ -166,38 +160,36 @@ void loop() {
     colour =  rgb2hsv_approximate(c);
   }    
 
-  fill_solid(leds, NUM_LEDS, CHSV(colour.h, 255, 62)); //minimum colour
-  faries.consider(colour);
-  sparkles.consider(CHSV(colour.h, 128, 255));
+  fill_solid(leds, NUM_LEDS, CHSV(colour.h, 255, WASH)); //minimum colour  
+  //faries.consider(colour);
+  //sparkles.consider(CHSV(colour.h, 128, 255));
+  
+  chase(colour);    
   FastLED.show();
-  //chase(colour);  
-  delay(50);  
+  
+  //FastLED.delay(10);  
   
 }
 
 
 
-/*
-
-
 //Note that the strip is 2xWIDTH wide, half faded in, half faded out.
 #define WIDTH 16
-static void chase(Colour c) {  
+static void chase(CHSV c) {  
 
-  static uint8_t i;
+  static uint8_t i;  
   static int8_t inc = 1;
+
+  uint16_t j;
   
-  for(int j = 1; j<WIDTH; j++ ) {    
-    Colour dim = fade(c, map(j, 0, WIDTH, 0, 255));
-    strip.setPixelColor(Pos(i-j), dim.red, dim.green, dim.blue); // Draw new pixel    
+  for(j = 0; j<WIDTH; j++ ) {        
+    leds[Pos(i+j)] |= CHSV(c.h, c.s, map(j, 0, WIDTH, WASH, 255) );
   }
-  for(int j = 0; j<WIDTH; j++ ) {
-    Colour dim = fade(c, map(j, 0, WIDTH, 255, 0));
-    strip.setPixelColor(Pos(i-j-WIDTH), dim.red, dim.green, dim.blue); // Draw new pixel    
+  for(j = 0; j<WIDTH; j++ ) {    
+    leds[Pos(i+j+WIDTH)] |= CHSV(c.h, c.s, map(j, 0, WIDTH, 255, WASH) );
   }  
-  //strip.setPixelColor(Pos(i-2*WIDTH), 0); // Erase pixel a few steps back   
   
-  switch( random(0, strip.numPixels() * 3) )
+  switch( random(0, NUM_LEDS * 3) )
   {
     case 0:
       inc = 1;
@@ -215,17 +207,9 @@ static void chase(Colour c) {
   i=Pos(i+inc);    
 }
 
-static Colour fade(Colour in, uint8_t brightness) {  
-  in.red = (in.red * brightness) >> 8;
-  in.green = (in.green * brightness) >> 8;
-  in.blue = (in.blue * brightness) >> 8;
-  return in;
-}
-
 static uint16_t Pos(uint16_t raw) {
-  return (strip.numPixels() + raw) % strip.numPixels();
+  return (NUM_LEDS + raw) % NUM_LEDS;
 }
-*/
 
 
 static uint8_t canRead() {
