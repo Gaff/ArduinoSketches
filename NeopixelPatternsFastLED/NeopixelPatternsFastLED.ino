@@ -53,7 +53,6 @@ CRGB leds[NUM_LEDS];
 //#define POINTS 32
 //static uint8_t points[POINTS];
 
-#define SPEED 16
 #define FRAMES_TO_MAX 16
 #define FRAMES_TO_NEXT 4
 
@@ -63,12 +62,12 @@ void error(const __FlashStringHelper *err) {
   while (1);
 }
 
-template <uint8_t points>
+template <uint8_t Tpoints, uint8_t Tframes_to_next = 4, uint8_t Tframes_to_max = 16>
 class CFaries {  
-  uint8_t m_points[points];   
+  uint8_t m_points[Tpoints];   
   uint16_t sequence = 0; 
   public:
-    uint8_t getPoints() { return points; }
+    uint8_t getPoints() { return Tpoints; }
     
     CFaries() {
       //sanity check:
@@ -76,7 +75,7 @@ class CFaries {
       //  error(F("You misconfigured the faires!"));
       
       //setup the array:
-      for(uint8_t i = 0; i < getPoints(); i++ )
+      for(uint8_t i = 0; i < Tpoints; i++ )
         m_points[i] = random(0, NUM_LEDS);
     }
     
@@ -85,16 +84,16 @@ class CFaries {
       
       for(uint8_t i=0;i<getPoints();i++) {        
         uint16_t seqi = sequence; //how long i has been alive.
-        seqi = (sequence + i*FRAMES_TO_NEXT) % (FRAMES_TO_NEXT*getPoints());
+        seqi = (sequence + i*Tframes_to_next) % (Tframes_to_next*Tpoints);
         if( seqi == 0 )
           m_points[i] = random(0, NUM_LEDS);
                  
-        if( seqi < FRAMES_TO_MAX ) {
-          dim = CHSV(c.h, c.s, map(seqi, 0, FRAMES_TO_MAX, 16, 255 ) ); 
+        if( seqi < Tframes_to_max ) {
+          dim = CHSV(c.h, c.s, map(seqi, 0, Tframes_to_max, 16, 255 ) ); 
           //strip.setPixelColor( points[i], dim.red, dim.green, dim.blue );
           leds[m_points[i]] |= dim;
-        } else if( seqi > FRAMES_TO_NEXT * getPoints() - FRAMES_TO_MAX ) {
-          dim = CHSV(c.h, c.s,  map(seqi, FRAMES_TO_NEXT * getPoints() - FRAMES_TO_MAX, FRAMES_TO_NEXT * getPoints(), 255, 16 ) );       
+        } else if( seqi > Tframes_to_next * Tpoints - Tframes_to_max ) {
+          dim = CHSV(c.h, c.s,  map(seqi, Tframes_to_next * Tpoints - Tframes_to_max, Tframes_to_next * Tpoints, 255, 16 ) );       
           //strip.setPixelColor( points[i], dim.red, dim.green, dim.blue ); 
           leds[m_points[i]] |= dim;
         } else {
@@ -104,13 +103,13 @@ class CFaries {
       }
     
       sequence++;
-      if( sequence == FRAMES_TO_NEXT*getPoints() )
+      if( sequence == FRAMES_TO_NEXT*Tpoints )
         sequence = 0;      
     }
 };
 
 CFaries<28> faries;
-CFaries<4> sparkles;
+CFaries<4, 4, 8> sparkles;
 
 
 void setup() {
