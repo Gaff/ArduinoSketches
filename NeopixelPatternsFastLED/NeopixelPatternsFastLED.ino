@@ -128,7 +128,7 @@ class CChase {
         uint16_t j;
  
         drawFractionalBar( leds, NUM_LEDS, m_phase, WIDTH, c);
-        m_phase++;
+        m_phase+=m_inc;
         if( m_phase >= NUM_LEDS * 16 )
           m_phase -= NUM_LEDS*16;
         //m_phase=Pos16(m_phase+m_inc);
@@ -139,8 +139,8 @@ class CChase {
 CFaries<28> faries;
 CFaries<4, 4, 8> sparkles;
 CChase chase;
-CChase chase2(NUM_LEDS/2);
-CChase chase3(0, -1);
+CChase chase2(NUM_LEDS/2, 2);
+CChase chase3(0, 3);
 
 void setup() {
   delay(1500);// sanity delay  
@@ -213,7 +213,7 @@ void loop() {
   //wave(colour);
   chase.consider(colour);  
   chase2.consider(colour);
-  //chase3.consider(colour);
+  chase3.consider(colour);
   //FastLED.delay(50);  //for the chase
   
   FastLED.show();
