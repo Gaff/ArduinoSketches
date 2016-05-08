@@ -43,13 +43,19 @@ extern uint8_t packetbuffer[];
 
 Adafruit_BluefruitLE_SPI ble(BLUEFRUIT_SPI_CS, BLUEFRUIT_SPI_IRQ, BLUEFRUIT_SPI_RST);
 
+#define TOTAL_LEDS 144
 #define NUM_LEDS 92
 #define LED_PIN 11
 #define COLOR_ORDER GRB
 #define CHIPSET     WS2811
-CRGB leds[NUM_LEDS];
+CRGB all_leds[TOTAL_LEDS];
+CRGB *leds; //TODO: Don't need both this and all_leds if we wanted to save a couple of bytes memory.
 
-#define WASH 62 //should be something light 40/brightness
+static uint16_t Pos(uint16_t raw) {
+  return (NUM_LEDS + raw) % NUM_LEDS;
+}
+
+#define WASH 50 //should be something light 40/brightness
 
 void error(const __FlashStringHelper *err) {
   Serial.println(err);
@@ -59,7 +65,7 @@ void error(const __FlashStringHelper *err) {
 template <uint8_t Tpoints, uint8_t Tframes_to_next = 4, uint8_t Tframes_to_max = 16>
 class CFaries {  
   uint8_t m_points[Tpoints];   
-  uint16_t sequence = 0; 
+  uint16_t m_sequence = 0; 
   public:
     uint8_t getPoints() { return Tpoints; }
     
@@ -77,8 +83,8 @@ class CFaries {
       CHSV dim;      
       
       for(uint8_t i=0;i<getPoints();i++) {        
-        uint16_t seqi = sequence; //how long i has been alive.
-        seqi = (sequence + i*Tframes_to_next) % (Tframes_to_next*Tpoints);
+        uint16_t seqi = m_sequence; //how long i has been alive.
+        seqi = (m_sequence + i*Tframes_to_next) % (Tframes_to_next*Tpoints);
         if( seqi == 0 )
           m_points[i] = random(0, NUM_LEDS);
                  
@@ -96,26 +102,56 @@ class CFaries {
         }    
       }
     
-      sequence++;
-      if( sequence == Tframes_to_next*Tpoints )
-        sequence = 0;      
+      m_sequence++;
+      if( m_sequence == Tframes_to_next*Tpoints )
+        m_sequence = 0;      
     }
+};
+
+//Note that the strip is 2xWIDTH wide, half faded in, half faded out.
+#define WIDTH 10
+
+class CChase {  
+  uint8_t m_offset = 0;
+  uint8_t m_phase = 0;
+  int8_t m_inc = 1;  
+  public:
+    CChase(uint8_t offset = 0, int8_t inc = 1) {
+      m_offset = offset;
+      m_phase = 0;
+      m_inc = inc;
+    }
+  
+    void consider(CHSV c) {
+        uint16_t j;
+ 
+        for(j = 0; j<WIDTH; j++ ) {        
+          leds[Pos(m_phase+j+m_offset)] += CHSV(c.h, c.s, map(j, 0, WIDTH, WASH, 255) );
+        }
+        for(j = 0; j<WIDTH; j++ ) {    
+          leds[Pos(m_phase+j+WIDTH+m_offset)] += CHSV(c.h, c.s, map(j, 0, WIDTH, 255, WASH) );
+        }  
+
+        m_phase=Pos(m_phase+m_inc);
+    }
+    
 };
 
 CFaries<28> faries;
 CFaries<4, 4, 8> sparkles;
-
+CChase chase;
+CChase chase2(NUM_LEDS/2);
+CChase chase3(0, -1);
 
 void setup() {
-  delay(1500);
-  // This is for Trinket 5V 16MHz, you can remove these three lines if you are not using a Trinket
-  delay(3000); // sanity delay
+  delay(1500);// sanity delay  
   
-
   Serial.begin(115200);
   
   Serial.println(F("MSH Neopixels FASTLED Yay"));
   Serial.println(F("-----------------------------------------"));
+  Serial.println((long)&all_leds[0]);
+  Serial.println((long)&all_leds[1]);
   
   if ( !ble.begin(VERBOSE_MODE) )
   {
@@ -129,11 +165,19 @@ void setup() {
   Serial.println(F("-----------------------------------------"));
 
   memset(leds, 0, sizeof( leds) );
-  FastLED.addLeds<CHIPSET, LED_PIN, COLOR_ORDER>(leds, NUM_LEDS).setCorrection( TypicalLEDStrip );
+  FastLED.addLeds<CHIPSET, LED_PIN, COLOR_ORDER>(all_leds, TOTAL_LEDS).setCorrection( TypicalLEDStrip );
   FastLED.setBrightness(100);
+  fill_solid( all_leds, TOTAL_LEDS, CRGB::Black );
   //coming in the next version!
-  //FastLED.setMaxPowerInVoltsAndMilliamps(5, 500);
+  //FastLED.setMaxPowerInVoltsAndMilliamps(5, 500);  
   FastLED.show();    
+
+  //For various odd reasons I wish to ignore the first few LEDs....
+  leds = &all_leds[TOTAL_LEDS - NUM_LEDS];
+  leds[0] = CRGB::Red;
+  leds[NUM_LEDS - 1] = CRGB::Blue;
+  FastLED.show(); 
+  delay(5000);
 
   //randomFairyInit();  
 
@@ -166,10 +210,12 @@ void loop() {
   //sparkles.consider(CHSV(colour.h, 128, 255));
   //FastLED.delay(50);  //for the faries
 
-  paletteBeat( colour );
+  //paletteBeat( colour );
   //wave(colour);
-  //chase(colour);
-        
+  chase.consider(colour);  
+  chase2.consider(colour);
+  //chase3.consider(colour);
+  
   FastLED.show();
   
   
@@ -208,7 +254,7 @@ static void beat(CHSV c) {
   //uint16_t w1 = beatsin16(60, 0, 66535, 0, 0,  );
   //uint16_t w2 = beatsin16(180, 0, 66535, 0, 0,  );
   
-  fill_solid( leds, NUM_LEDS, CHSV( c.h, c.s, beatsin8( 80 ) ) );
+  fill_solid( leds, NUM_LEDS, CHSV( c.h, c.s, beat8( 80 ) ) );
 }
 
 static void wave( CHSV c ) {
@@ -239,44 +285,6 @@ static void wave( CHSV c ) {
   
 }
 
-
-//Note that the strip is 2xWIDTH wide, half faded in, half faded out.
-#define WIDTH 16
-static void chase(CHSV c) {  
-
-  static uint8_t i;  
-  static int8_t inc = 1;
-
-  uint16_t j;
- 
-  for(j = 0; j<WIDTH; j++ ) {        
-    leds[Pos(i+j)] |= CHSV(c.h, c.s, map(j, 0, WIDTH, WASH, 255) );
-  }
-  for(j = 0; j<WIDTH; j++ ) {    
-    leds[Pos(i+j+WIDTH)] |= CHSV(c.h, c.s, map(j, 0, WIDTH, 255, WASH) );
-  }  
-  
-  switch( random(0, NUM_LEDS * 3) )
-  {
-    case 0:
-      inc = 1;
-      break;
-    case 1:
-      inc = -1;
-      break;
-    case 2:
-      inc = 2;
-      break;
-    case 3:
-      inc = -2;
-      break;
-  }
-  i=Pos(i+inc);    
-}
-
-static uint16_t Pos(uint16_t raw) {
-  return (NUM_LEDS + raw) % NUM_LEDS;
-}
 
 
 static uint8_t canRead() {
