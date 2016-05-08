@@ -93,16 +93,16 @@ class CFaries {
           m_points[i] = random(0, NUM_LEDS);
                  
         if( seqi < Tframes_to_max ) {
-          dim = CHSV(c.h, c.s, map(seqi, 0, Tframes_to_max, 16, 255 ) ); 
+          dim = CHSV(c.h+random8(10)-5, c.s, map(seqi, 0, Tframes_to_max, 16, 255 ) ); 
           //strip.setPixelColor( points[i], dim.red, dim.green, dim.blue );
           leds[m_points[i]] |= dim;
         } else if( seqi > Tframes_to_next * Tpoints - Tframes_to_max ) {
-          dim = CHSV(c.h, c.s,  map(seqi, Tframes_to_next * Tpoints - Tframes_to_max, Tframes_to_next * Tpoints, 255, 16 ) );       
+          dim = CHSV(c.h+random8(10)-5, c.s,  map(seqi, Tframes_to_next * Tpoints - Tframes_to_max, Tframes_to_next * Tpoints, 255, 16 ) );       
           //strip.setPixelColor( points[i], dim.red, dim.green, dim.blue ); 
           leds[m_points[i]] |= dim;
         } else {
           //strip.setPixelColor( points[i], c.red, c.green, c.blue );
-          leds[m_points[i]] |= CHSV( c.h, c.s, 255);
+          leds[m_points[i]] |= CHSV( c.h+random8(10)-5, c.s, 255);
         }    
       }
     
@@ -205,16 +205,16 @@ void loop() {
 
   fill_solid(leds, NUM_LEDS, CHSV(colour.h, 255, WASH)); //minimum colour  
   
-  //faries.consider(colour);
-  //sparkles.consider(CHSV(colour.h, 128, 255));
-  //FastLED.delay(50);  //for the faries
+  faries.consider(colour);
+  sparkles.consider(CHSV(colour.h, 128, 255));
+  FastLED.delay(50);  //for the faries
 
   //paletteBeat( colour );
   //wave(colour);
-  chase.consider(colour);  
-  chase2.consider(colour);
-  chase3.consider(colour);
-  //FastLED.delay(50);  //for the chase
+  //chase.consider(colour);  
+  //chase2.consider(CHSV(colour.h+20, colour.s, colour.v));
+  //chase3.consider(CHSV(colour.h-20, colour.s, colour.v));
+  
   
   FastLED.show();
   
