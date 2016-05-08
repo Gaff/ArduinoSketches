@@ -44,7 +44,7 @@ extern uint8_t packetbuffer[];
 Adafruit_BluefruitLE_SPI ble(BLUEFRUIT_SPI_CS, BLUEFRUIT_SPI_IRQ, BLUEFRUIT_SPI_RST);
 
 #define TOTAL_LEDS 144
-#define NUM_LEDS 92
+#define NUM_LEDS 90
 #define LED_PIN 11
 #define COLOR_ORDER GRB
 #define CHIPSET     WS2811
@@ -53,6 +53,10 @@ CRGB *leds; //TODO: Don't need both this and all_leds if we wanted to save a cou
 
 static uint16_t Pos(uint16_t raw) {
   return (NUM_LEDS + raw) % NUM_LEDS;
+}
+
+static int Pos16(int raw) {  
+  return (NUM_LEDS*16 + raw) % NUM_LEDS*16;
 }
 
 #define WASH 50 //should be something light 40/brightness
@@ -109,30 +113,25 @@ class CFaries {
 };
 
 //Note that the strip is 2xWIDTH wide, half faded in, half faded out.
-#define WIDTH 10
+#define WIDTH 12
 
-class CChase {  
-  uint8_t m_offset = 0;
-  uint8_t m_phase = 0;
+class CChase {    
+  int m_phase = 0;
   int8_t m_inc = 1;  
   public:
     CChase(uint8_t offset = 0, int8_t inc = 1) {
-      m_offset = offset;
-      m_phase = 0;
+      m_phase = offset*16;
       m_inc = inc;
     }
   
     void consider(CHSV c) {
         uint16_t j;
  
-        for(j = 0; j<WIDTH; j++ ) {        
-          leds[Pos(m_phase+j+m_offset)] += CHSV(c.h, c.s, map(j, 0, WIDTH, WASH, 255) );
-        }
-        for(j = 0; j<WIDTH; j++ ) {    
-          leds[Pos(m_phase+j+WIDTH+m_offset)] += CHSV(c.h, c.s, map(j, 0, WIDTH, 255, WASH) );
-        }  
-
-        m_phase=Pos(m_phase+m_inc);
+        drawFractionalBar( leds, NUM_LEDS, m_phase, WIDTH, c);
+        m_phase++;
+        if( m_phase >= NUM_LEDS * 16 )
+          m_phase -= NUM_LEDS*16;
+        //m_phase=Pos16(m_phase+m_inc);
     }
     
 };
@@ -177,7 +176,7 @@ void setup() {
   leds[0] = CRGB::Red;
   leds[NUM_LEDS - 1] = CRGB::Blue;
   FastLED.show(); 
-  delay(5000);
+  delay(1000);
 
   //randomFairyInit();  
 
@@ -215,8 +214,10 @@ void loop() {
   chase.consider(colour);  
   chase2.consider(colour);
   //chase3.consider(colour);
+  //FastLED.delay(50);  //for the chase
   
   FastLED.show();
+  
   
   
   
