@@ -45,7 +45,7 @@ Adafruit_BluefruitLE_SPI ble(BLUEFRUIT_SPI_CS, BLUEFRUIT_SPI_IRQ, BLUEFRUIT_SPI_
 
 #define TOTAL_LEDS 144
 #define NUM_LEDS 90
-#define LED_PIN 11
+#define LED_PIN 18
 #define COLOR_ORDER GRB
 #define CHIPSET     WS2811
 CRGB all_leds[TOTAL_LEDS];
@@ -186,7 +186,7 @@ void setup() {
 }
 
 
-CHSV colour = {108, 255, 255 };
+CHSV colour = {33, 255, 255 };
 // the loop function runs over and over again forever
 void loop() {  
 
