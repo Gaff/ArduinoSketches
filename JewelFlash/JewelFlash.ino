@@ -5,8 +5,8 @@
   #include <avr/power.h>
 #endif
 
-#define NUM_LEDS 20
-#define LED_PIN 0
+#define NUM_LEDS 32
+#define LED_PIN 18
 #define WASH 0
 #define GEMSIZE 7
 

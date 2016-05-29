@@ -18,6 +18,7 @@
 #define FACTORYRESET_ENABLE         1
 #define MINIMUM_FIRMWARE_VERSION    "0.6.6"
 #define MODE_LED_BEHAVIOUR          "MODE"
+#define VERBOSE_MODE 1
 
 
 struct colour {
@@ -156,8 +157,22 @@ void setup() {
   {
     error(F("Couldn't find Bluefruit, make sure it's in CoMmanD mode & check wiring?"));
   }
-  
-  ble.sendCommandCheckOK("AT+HWModeLED=" MODE_LED_BEHAVIOUR);
+
+  if ( FACTORYRESET_ENABLE )
+  {
+    /* Perform a factory reset to make sure everything is in a known state */
+    Serial.println(F("Performing a factory reset: "));
+    if ( ! ble.factoryReset() ){
+      error(F("Couldn't factory reset"));
+    }
+  }
+
+  ble.echo(true);
+
+  Serial.println("Requesting Bluefruit info:");
+  /* Print Bluefruit information */
+  ble.info();  
+  //ble.sendCommandCheckOK("AT+HWModeLED=" MODE_LED_BEHAVIOUR);
   ble.setMode(BLUEFRUIT_MODE_DATA);
 
   Serial.println(F("Bluefruit setup"));
