@@ -13,6 +13,8 @@
 #include <Adafruit_BLE.h>
 #include <Adafruit_BluefruitLE_SPI.h>
 
+#include "GaffUtils.h"
+
 //===============
 // Blynk setup
 //===============
@@ -112,6 +114,9 @@ void render() {
     case 2:
       render_wave();
       break;
+    case 3:
+      render_chase();
+      break;
   }
 }
 
@@ -123,6 +128,12 @@ void render_wave() {
   int b = beatsin8(tickspeed);
   //Serial.print(F("Beat: ")); Serial.println(b);
   fill_solid( leds, NUM_LEDS, CHSV( zergba.h, zergba.s, b ) );
+}
+
+void render_chase() {
+  int b = map( beat16(tickspeed), 0, 65535, 0, NUM_LEDS*16);
+  fill_solid( leds, NUM_LEDS, CRGB::Black );
+  drawFractionalBar(leds, NUM_LEDS, b, 3, zergba );
 }
 
 void loop() {
