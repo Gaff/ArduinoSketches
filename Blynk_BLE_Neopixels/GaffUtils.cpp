@@ -7,7 +7,7 @@
 // Arguably, this is the interesting code.
 void drawFractionalBar( CRGB* leds, uint8_t NUM_LEDS, int pos16, uint8_t width, CHSV c)
 {
-  int i = pos16 / 16; // convert from pos to raw pixel number
+  int i = (pos16 / 16) % NUM_LEDS; // convert from pos to raw pixel number
   uint8_t frac = pos16 & 0x0F; // extract the 'factional' part of the position
  
   // brightness of the first pixel in the bar is 1.0 - (fractional part of position)

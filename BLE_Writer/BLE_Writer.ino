@@ -31,39 +31,65 @@ char auth[] = "9aef6a9e386b49a98013b6fb364cc0db";
 
 Adafruit_BluefruitLE_SPI ble(BLUEFRUIT_SPI_CS, BLUEFRUIT_SPI_IRQ, BLUEFRUIT_SPI_RST);
 
+
 #define INTERVAL 5000
+#define POLL_INTERVAL 1000
 int thevalue;
 long previousMillis;
+long previousPollMillis;
 
 void setup() {
   delay(1500);
   Serial.begin(115200);
   Serial.println(F("Blynk for adafruit BLE modules with FAST LED neopixels")); 
 
-  Blynk.begin(auth, ble);
+  //Blynk.begin(auth, ble);
+  
   ble.begin(BLUEFRUIT_VERBOSE_MODE);   
-  //ble.factoryReset(); //Optional
-  ble.setMode(BLUEFRUIT_MODE_DATA); 
+  ble.factoryReset(); //Optional
+  ble.echo(true);
+  ble.info();
+  ble.setMode(BLUEFRUIT_MODE_DATA);   
   previousMillis = 0; //force an initial publish
+  previousPollMillis = 0;
 }
+
+void pollBLE() {
+  ble.setMode(BLUEFRUIT_MODE_COMMAND); 
+  ble.println("AT+BLEUARTFIFO");
+  ble.waitForOK();
+  ble.setMode(BLUEFRUIT_MODE_DATA); 
+}
+
 
 void loop() {
   unsigned long currentMillis = millis();  
   if(currentMillis - previousMillis > INTERVAL) {
-    // save the last time you blinked the LED 
     previousMillis = currentMillis;   
-
-    dowrites();
+    dowrites();    
+  }
+  if(currentMillis - previousPollMillis > POLL_INTERVAL) {
+    previousPollMillis = currentMillis;   
+    pollBLE();    
   }  
-  Blynk.run();
+  //Blynk.run();
 }
 
 void dowrites() {
   Serial.println(F("Tick"));
   thevalue++;
+  /*
   Blynk.virtualWrite(V0, thevalue);
   Blynk.virtualWrite(V1, thevalue);  
   Blynk.virtualWrite(V2, thevalue);  
-  Blynk.virtualWrite(V3, thevalue);  
+  Blynk.virtualWrite(V3, thevalue); */
+  for(int i = 0; i < 4; i++)
+  {
+    ble.print("This is value: ");
+    Serial.print("This is value: ");
+    ble.println(thevalue);
+    Serial.println( thevalue);
+  }
+  ble.flush(); 
 }
 

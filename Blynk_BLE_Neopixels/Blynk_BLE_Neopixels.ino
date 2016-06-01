@@ -40,14 +40,15 @@ Adafruit_BluefruitLE_SPI ble(BLUEFRUIT_SPI_CS, BLUEFRUIT_SPI_IRQ, BLUEFRUIT_SPI_
 // Fast LED setup
 //===============
 
-#define NUM_LEDS 32
+#define NUM_LEDS 89
 #define LED_PIN 18
 #define COLOR_ORDER GRB
 #define CHIPSET     WS2811
-CRGB leds[NUM_LEDS];
-CHSV zergba = {33, 255, 255};
-uint8_t mode = 0;
-uint8_t tickspeed = 80;
+CRGB g_leds[NUM_LEDS];
+CHSV g_zergba = {33, 255, 255};
+uint8_t g_mode = 2;
+uint8_t g_tickspeed = 40;
+uint8_t g_length = 5;
 
 void setup() {
   delay(1500);
@@ -59,9 +60,9 @@ void setup() {
   //ble.factoryReset(); //Optional
   ble.setMode(BLUEFRUIT_MODE_DATA); 
   
-  FastLED.addLeds<CHIPSET, LED_PIN, COLOR_ORDER>(leds, NUM_LEDS).setCorrection( TypicalLEDStrip );
-  FastLED.setBrightness(100);
-  fill_solid( leds, NUM_LEDS, CRGB::Black );
+  FastLED.addLeds<CHIPSET, LED_PIN, COLOR_ORDER>(g_leds, NUM_LEDS).setCorrection( TypicalLEDStrip );
+  FastLED.setBrightness(50);
+  fill_solid( g_leds, NUM_LEDS, CRGB::Black );
   //coming in the next version!
   //FastLED.setMaxPowerInVoltsAndMilliamps(5, 500);  
   FastLED.show();   
@@ -84,29 +85,42 @@ BLYNK_CONNECTED() {
 BLYNK_WRITE(V3) //Zergba
 {  
   CRGB c = CRGB(param[0].asInt(), param[1].asInt(), param[2].asInt());
-  zergba = rgb2hsv_approximate(c);
-  zergba = CHSV(zergba.h, zergba.s, 255);
+  g_zergba = rgb2hsv_approximate(c);
+  g_zergba = CHSV(g_zergba.h, g_zergba.s, 255);
 }
 
 BLYNK_WRITE(V10) //Random
 {
   int pinData = param.asInt();
   if( pinData == 0)
-    zergba = CHSV(random8(), 255, 255);
+    g_zergba = CHSV(random8(), 255, 255);
 }
 
 BLYNK_WRITE(V1) //dropdown.
 {
-  mode = param.asInt(); 
+  g_mode = param.asInt(); 
 }
 
 BLYNK_WRITE(V2) //speed
 {
-  tickspeed = param.asInt();
+  g_tickspeed = param.asInt();
+}
+
+BLYNK_WRITE(V4) //length
+{
+  g_length = param.asInt();
+}
+
+BLYNK_WRITE(V5) //brightness
+{
+  int b = param.asInt();
+  if(b<0) b = 0;
+  if(b>120) b = 120;
+  FastLED.setBrightness(b);
 }
 
 void render() {
-  switch(mode) {
+  switch(g_mode) {
     case 0: //Blynk is 1-indexed
     case 1:
       render_fill();
@@ -114,26 +128,43 @@ void render() {
     case 2:
       render_wave();
       break;
+    //chase 1-3
     case 3:
+    case 4:
+    case 5:
       render_chase();
       break;
   }
 }
 
 void render_fill() {
-  fill_solid( leds, NUM_LEDS, zergba );
+  fill_solid( g_leds, NUM_LEDS, g_zergba );
 }
 
 void render_wave() {
-  int b = beatsin8(tickspeed);
+  int b = beatsin8(g_tickspeed);
   //Serial.print(F("Beat: ")); Serial.println(b);
-  fill_solid( leds, NUM_LEDS, CHSV( zergba.h, zergba.s, b ) );
+  fill_solid( g_leds, NUM_LEDS, CHSV( g_zergba.h, g_zergba.s, b ) );
 }
 
-void render_chase() {
-  int b = map( beat16(tickspeed), 0, 65535, 0, NUM_LEDS*16);
-  fill_solid( leds, NUM_LEDS, CRGB::Black );
-  drawFractionalBar(leds, NUM_LEDS, b, 3, zergba );
+void render_chase() {  
+  static bool dir = true;
+  int b;
+  if (dir)
+    b = map( beat16(g_tickspeed), 0, 65535, 0, NUM_LEDS*16);
+  else
+    b = map( beat16(g_tickspeed), 0, 65535, NUM_LEDS*16, 0);
+  
+  fill_solid( g_leds, NUM_LEDS, CRGB::Black );
+  drawFractionalBar(g_leds, NUM_LEDS, b, g_length, g_zergba );
+
+  if(g_mode == 4) {
+    drawFractionalBar(g_leds, NUM_LEDS, b + NUM_LEDS*16/2, g_length, g_zergba );
+  }
+  else if(g_mode == 5) {
+    drawFractionalBar(g_leds, NUM_LEDS, b + NUM_LEDS*16/3, g_length, g_zergba );
+    drawFractionalBar(g_leds, NUM_LEDS, b + NUM_LEDS*16*2/3, g_length, g_zergba );
+  }
 }
 
 void loop() {
