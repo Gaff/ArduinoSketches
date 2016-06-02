@@ -1,7 +1,7 @@
 
 //Leave these at the top, becase C++.
-#define BLYNK_DEBUG
-#define BLYNK_PRINT Serial
+//#define BLYNK_DEBUG
+//#define BLYNK_PRINT Serial
 #define BLYNK_USE_DIRECT_CONNECT
 
 #include <SoftwareSerial.h>
@@ -14,6 +14,7 @@
 #include <Adafruit_BluefruitLE_SPI.h>
 
 #include "GaffUtils.h"
+#include "CFairy.h"
 
 //===============
 // Blynk setup
@@ -49,6 +50,8 @@ CHSV g_zergba = {33, 255, 255};
 uint8_t g_mode = 2;
 uint8_t g_tickspeed = 40;
 uint8_t g_length = 5;
+bool g_dir = 1;
+uint8_t g_wash = 0;
 
 void setup() {
   delay(1500);
@@ -119,6 +122,14 @@ BLYNK_WRITE(V5) //brightness
   FastLED.setBrightness(b);
 }
 
+BLYNK_WRITE(V6) //wash
+{
+  int b = param.asInt();
+  if(b<0) b = 0;
+  if(b>50) b = 50;
+  g_wash = b;
+}
+
 void render() {
   switch(g_mode) {
     case 0: //Blynk is 1-indexed
@@ -134,7 +145,14 @@ void render() {
     case 5:
       render_chase();
       break;
+    case 6:
+      render_fairy();
+      break;
   }
+}
+
+void wash() {
+  fill_solid( g_leds, NUM_LEDS, CHSV(g_zergba.h, g_zergba.s, g_wash));
 }
 
 void render_fill() {
@@ -143,19 +161,19 @@ void render_fill() {
 
 void render_wave() {
   int b = beatsin8(g_tickspeed);
+  if( b < g_wash) b = g_wash;
   //Serial.print(F("Beat: ")); Serial.println(b);
   fill_solid( g_leds, NUM_LEDS, CHSV( g_zergba.h, g_zergba.s, b ) );
 }
 
-void render_chase() {  
-  static bool dir = true;
+void render_chase() {    
   int b;
-  if (dir)
+  if (g_dir)
     b = map( beat16(g_tickspeed), 0, 65535, 0, NUM_LEDS*16);
   else
     b = map( beat16(g_tickspeed), 0, 65535, NUM_LEDS*16, 0);
   
-  fill_solid( g_leds, NUM_LEDS, CRGB::Black );
+  wash();
   drawFractionalBar(g_leds, NUM_LEDS, b, g_length, g_zergba );
 
   if(g_mode == 4) {
@@ -165,6 +183,16 @@ void render_chase() {
     drawFractionalBar(g_leds, NUM_LEDS, b + NUM_LEDS*16/3, g_length, g_zergba );
     drawFractionalBar(g_leds, NUM_LEDS, b + NUM_LEDS*16*2/3, g_length, g_zergba );
   }
+}
+
+void render_fairy() {  
+  static CFairy<NUM_LEDS/2> faries(NUM_LEDS);
+  static CFairy<NUM_LEDS/16> sparkles(NUM_LEDS);
+
+  wash();
+  uint16_t b = beat16(g_tickspeed/5);
+  faries.render(g_leds, NUM_LEDS, b, g_zergba);
+  sparkles.render(g_leds, NUM_LEDS, beat16(g_tickspeed), CHSV(0, 0, 255));  
 }
 
 void loop() {

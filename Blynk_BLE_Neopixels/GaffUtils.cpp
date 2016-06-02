@@ -5,9 +5,9 @@
 // rendered using 'anti-aliasing' of pixel brightness.
 // The bar width is specified in whole pixels.
 // Arguably, this is the interesting code.
-void drawFractionalBar( CRGB* leds, uint8_t NUM_LEDS, int pos16, uint8_t width, CHSV c)
+void drawFractionalBar( CRGB* leds, uint8_t num_leds, int pos16, uint8_t width, CHSV c)
 {
-  int i = (pos16 / 16) % NUM_LEDS; // convert from pos to raw pixel number
+  int i = (pos16 / 16) % num_leds; // convert from pos to raw pixel number
   uint8_t frac = pos16 & 0x0F; // extract the 'factional' part of the position
  
   // brightness of the first pixel in the bar is 1.0 - (fractional part of position)
@@ -49,6 +49,6 @@ void drawFractionalBar( CRGB* leds, uint8_t NUM_LEDS, int pos16, uint8_t width, 
    
     leds[i] += CHSV( c.hue, c.sat, bright);
     i++;
-    if( i == NUM_LEDS) i = 0; // wrap around
+    if( i == num_leds) i = 0; // wrap around
   }
 }
