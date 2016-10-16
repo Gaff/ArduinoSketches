@@ -17,6 +17,7 @@
 
 #include <Wire.h>           // For I2C communication
 #include "eyes.h"           // Flame animation data
+#include "eyes2.h"           // Flame animation data
 //#include "data.h"
 //#include <avr/power.h>      // Peripheral control and
 //#include <avr/sleep.h>      // sleep to minimize current draw
