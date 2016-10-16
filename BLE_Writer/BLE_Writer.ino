@@ -43,7 +43,7 @@ void setup() {
   Serial.begin(115200);
   Serial.println(F("Blynk for adafruit BLE modules with FAST LED neopixels")); 
 
-  //Blynk.begin(auth, ble);
+  Blynk.begin(auth, ble);
   
   ble.begin(BLUEFRUIT_VERBOSE_MODE);   
   ble.factoryReset(); //Optional
@@ -68,21 +68,24 @@ void loop() {
     previousMillis = currentMillis;   
     dowrites();    
   }
+  /*
   if(currentMillis - previousPollMillis > POLL_INTERVAL) {
     previousPollMillis = currentMillis;   
     pollBLE();    
   }  
-  //Blynk.run();
+  */
+  Blynk.run();
 }
 
 void dowrites() {
   Serial.println(F("Tick"));
   thevalue++;
-  /*
+  
   Blynk.virtualWrite(V0, thevalue);
   Blynk.virtualWrite(V1, thevalue);  
   Blynk.virtualWrite(V2, thevalue);  
-  Blynk.virtualWrite(V3, thevalue); */
+  Blynk.virtualWrite(V3, thevalue); 
+  /*
   for(int i = 0; i < 4; i++)
   {
     ble.print("This is value: ");
@@ -90,6 +93,7 @@ void dowrites() {
     ble.println(thevalue);
     Serial.println( thevalue);
   }
+  */
   ble.flush(); 
 }
 

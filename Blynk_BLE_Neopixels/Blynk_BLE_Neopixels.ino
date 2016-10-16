@@ -48,10 +48,13 @@ Adafruit_BluefruitLE_SPI ble(BLUEFRUIT_SPI_CS, BLUEFRUIT_SPI_IRQ, BLUEFRUIT_SPI_
 CRGB g_leds[NUM_LEDS];
 CHSV g_zergba = {33, 255, 255};
 uint8_t g_mode = 2;
+uint8_t g_palletemode = 0;
 uint8_t g_tickspeed = 40;
 uint8_t g_length = 5;
 bool g_dir = 1;
 uint8_t g_wash = 0;
+CRGBPalette16 g_palette;
+uint8_t g_paletteratio = 10;
 
 void setup() {
   delay(1500);
@@ -90,6 +93,7 @@ BLYNK_WRITE(V3) //Zergba
   CRGB c = CRGB(param[0].asInt(), param[1].asInt(), param[2].asInt());
   g_zergba = rgb2hsv_approximate(c);
   g_zergba = CHSV(g_zergba.h, g_zergba.s, 255);
+  g_palletemode = 0;
 }
 
 BLYNK_WRITE(V10) //Random
@@ -97,11 +101,17 @@ BLYNK_WRITE(V10) //Random
   int pinData = param.asInt();
   if( pinData == 0)
     g_zergba = CHSV(random8(), 255, 255);
+  g_palletemode = 0;
 }
 
 BLYNK_WRITE(V1) //dropdown.
 {
   g_mode = param.asInt(); 
+}
+
+BLYNK_WRITE(V9) //direction
+{
+  g_dir = param.asInt(); 
 }
 
 BLYNK_WRITE(V2) //speed
@@ -126,72 +136,115 @@ BLYNK_WRITE(V6) //wash
 {
   int b = param.asInt();
   if(b<0) b = 0;
-  if(b>50) b = 50;
+  //if(b>50) b = 50;
   g_wash = b;
 }
 
+BLYNK_WRITE(V7) //g_palletemode
+{
+  int b = param.asInt();
+  g_palletemode = b;
+  switch(g_palletemode) {
+    case 2:
+      g_palette = CloudColors_p;
+      break;
+    case 3:
+      g_palette = LavaColors_p;
+      break;
+    case 4:
+      g_palette = OceanColors_p;
+      break;
+    case 5:
+      g_palette = ForestColors_p;
+      break;
+    case 6:
+      g_palette = RainbowColors_p;
+      break;
+    case 7:
+      g_palette = PartyColors_p;
+      break;
+    case 8:
+      g_palette = HeatColors_p;
+      break;
+  }
+}
+
+BLYNK_WRITE(V8) //pallete ratio
+{
+  int b = param.asInt();  
+  g_paletteratio = b;
+}
+
 void render() {
+
+  CHSV c = g_zergba;  
+
+  if(g_palletemode > 1 ) {
+    uint8_t b = beat8(g_tickspeed / g_paletteratio);
+    c = rgb2hsv_approximate(ColorFromPalette(g_palette, b, 255, LINEARBLEND));
+  }
+    
   switch(g_mode) {
     case 0: //Blynk is 1-indexed
     case 1:
-      render_fill();
+      render_fill(c);
       break;
     case 2:
-      render_wave();
+      render_wave(c);
       break;
     //chase 1-3
     case 3:
     case 4:
     case 5:
-      render_chase();
+      render_chase(c);
       break;
     case 6:
-      render_fairy();
+      render_fairy(c);
       break;
   }
 }
 
-void wash() {
-  fill_solid( g_leds, NUM_LEDS, CHSV(g_zergba.h, g_zergba.s, g_wash));
+void wash(CHSV c) {
+  fill_solid( g_leds, NUM_LEDS, CHSV(c.h, c.s, g_wash));
 }
 
-void render_fill() {
-  fill_solid( g_leds, NUM_LEDS, g_zergba );
+void render_fill(CHSV c) {
+  fill_solid( g_leds, NUM_LEDS, c );
 }
 
-void render_wave() {
+void render_wave(CHSV c) {
   int b = beatsin8(g_tickspeed);
   if( b < g_wash) b = g_wash;
   //Serial.print(F("Beat: ")); Serial.println(b);
-  fill_solid( g_leds, NUM_LEDS, CHSV( g_zergba.h, g_zergba.s, b ) );
+  fill_solid( g_leds, NUM_LEDS, CHSV( c.h, c.s, b ) );
 }
 
-void render_chase() {    
+void render_chase(CHSV c) {    
   int b;
   if (g_dir)
     b = map( beat16(g_tickspeed), 0, 65535, 0, NUM_LEDS*16);
   else
     b = map( beat16(g_tickspeed), 0, 65535, NUM_LEDS*16, 0);
   
-  wash();
-  drawFractionalBar(g_leds, NUM_LEDS, b, g_length, g_zergba );
+  wash(c);
+  drawFractionalBar(g_leds, NUM_LEDS, b, g_length, c );
 
   if(g_mode == 4) {
-    drawFractionalBar(g_leds, NUM_LEDS, b + NUM_LEDS*16/2, g_length, g_zergba );
+    drawFractionalBar(g_leds, NUM_LEDS, b + NUM_LEDS*16/2, g_length, c );
   }
   else if(g_mode == 5) {
-    drawFractionalBar(g_leds, NUM_LEDS, b + NUM_LEDS*16/3, g_length, g_zergba );
-    drawFractionalBar(g_leds, NUM_LEDS, b + NUM_LEDS*16*2/3, g_length, g_zergba );
+    drawFractionalBar(g_leds, NUM_LEDS, b + NUM_LEDS*16/3, g_length, c );
+    drawFractionalBar(g_leds, NUM_LEDS, b + NUM_LEDS*16*2/3, g_length, c );
   }
 }
 
-void render_fairy() {  
+void render_fairy(CHSV c) {  
   static CFairy<NUM_LEDS/2> faries(NUM_LEDS);
   static CFairy<NUM_LEDS/16> sparkles(NUM_LEDS);
 
-  wash();
+  wash(c);
   uint16_t b = beat16(g_tickspeed/5);
-  faries.render(g_leds, NUM_LEDS, b, g_zergba);
+  faries.render(g_leds, NUM_LEDS, b, c);
   sparkles.render(g_leds, NUM_LEDS, beat16(g_tickspeed), CHSV(0, 0, 255));  
 }
 
