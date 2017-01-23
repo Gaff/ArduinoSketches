@@ -47,7 +47,7 @@ extern uint8_t packetbuffer[];
 Adafruit_BluefruitLE_SPI ble(BLUEFRUIT_SPI_CS, BLUEFRUIT_SPI_IRQ, BLUEFRUIT_SPI_RST);
 
 #define LED 13
-#define PIN 11
+#define PIN 18
 Adafruit_NeoPixel strip = Adafruit_NeoPixel(92, PIN, NEO_GRB + NEO_KHZ800);
 
 void error(const __FlashStringHelper*err) {

@@ -61,17 +61,19 @@ void setup() {
   Serial.begin(115200);
   Serial.println(F("Blynk for adafruit BLE modules with FAST LED neopixels")); 
   
-  Blynk.begin(auth, ble);
   ble.begin(BLUEFRUIT_VERBOSE_MODE);   
   //ble.factoryReset(); //Optional
   ble.setMode(BLUEFRUIT_MODE_DATA); 
   
-  FastLED.addLeds<CHIPSET, LED_PIN, COLOR_ORDER>(g_leds, NUM_LEDS).setCorrection( TypicalLEDStrip );
-  FastLED.setBrightness(50);
-  fill_solid( g_leds, NUM_LEDS, CRGB::Black );
+  FastLED.addLeds<NEOPIXEL, LED_PIN>(g_leds, NUM_LEDS).setCorrection( TypicalLEDStrip );
+  FastLED.setBrightness(100);
+  fill_solid( g_leds, NUM_LEDS, CRGB::Red );
   //coming in the next version!
   //FastLED.setMaxPowerInVoltsAndMilliamps(5, 500);  
   FastLED.show();   
+
+  Serial.println(F("Starting blynk...")); 
+  Blynk.begin(auth, ble);
 }
 
 /*
