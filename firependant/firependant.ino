@@ -185,11 +185,7 @@ void loadFramesLR(uint8_t left[], uint8_t right[]) {
   DirectReadImage img(4);
   for(int i = 0; i < 8; i++ ) {
     img.frame = left[i];
-    img.flip = true;
-    Serial.print(F("Writing page "));
-    Serial.print(i);
-    Serial.print(F(" "));
-    Serial.print(left[i]);
+    img.flip = true;    
     writeframe(LEFT_I2C_ADDR, i, img);    
     img.frame = right[i];
     img.flip = false;
@@ -199,19 +195,18 @@ void loadFramesLR(uint8_t left[], uint8_t right[]) {
 
 
 void loadFrames() {  
-
-  Serial.println(F("Loading frames.."));  
-  int anim = random(3);
-
+  int anim = random(2);
+  Serial.print(F("Loading animation "));  
+  Serial.println(anim);  
   switch(anim) {
-    case 0: //stare
-      loadFramesLR(centre_in_centre, centre_in_centre);      
-      break;
-    case 1: //left
+    case 0: //left
       loadFramesLR(centre_in_centre, centre_out_centre);
       break;      
-    case 2: //right
+    case 1: //right
       loadFramesLR(centre_out_centre, centre_in_centre);
+      break;
+    case 2: //stare
+      loadFramesLR(centre_in_centre, centre_in_centre);      
       break;
   }
 }
@@ -231,9 +226,11 @@ void loop() {
 
   displayPage(LEFT_I2C_ADDR, framep);
   displayPage(RIGHT_I2C_ADDR, framep);
-  delay(50);
+  delay(50);  
 
   framep++;
+  if(framep == 4)
+    delay(150);
   if(framep > 7) framep = 0;
 
 }
