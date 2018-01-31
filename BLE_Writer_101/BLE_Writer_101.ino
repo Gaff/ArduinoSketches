@@ -13,34 +13,34 @@
 
 // You should get Auth Token in the Blynk App.
 // Go to the Project Settings (nut icon).
-char auth[] = "9aef6a9e386b49a98013b6fb364cc0db";
+char auth[] = "570529042ad34219a964929e2a483f40";
 
-//===============
-// BLE setup
-//===============
 
-BLEPeripheral  ble;
+BLEPeripheral  blePeripheral;
 
-#define INTERVAL 5000
-#define POLL_INTERVAL 1000
+#define INTERVAL 1000
+#define POLL_INTERVAL 100
 int thevalue;
 long previousMillis;
 long previousPollMillis;
 
-void setup() {
+void setup()
+{
+  // Debug console
   Serial.begin(9600);
-  delay(1500);  
-  Serial.println(F("Blynk for adafruit BLE modules with FAST LED neopixels")); 
 
-  ble.setLocalName("Blynk101");
-  ble.setDeviceName("Blynk101");
-  ble.setAppearance(384);
+  delay(1000);
 
-  Blynk.begin(auth, ble);
-  ble.begin();
+  blePeripheral.setLocalName("Blynk101");
+  blePeripheral.setDeviceName("Blynk101");
+  blePeripheral.setAppearance(384);
+
+  Blynk.begin(blePeripheral, auth);
+
+  blePeripheral.begin();
 
   Serial.println("Waiting for connections...");
-  
+
   previousMillis = 0; //force an initial publish
   previousPollMillis = 0;
 }
@@ -48,14 +48,14 @@ void setup() {
 
 
 void loop() {
+  
   unsigned long currentMillis = millis();  
   if(currentMillis - previousMillis > INTERVAL) {
     previousMillis = currentMillis;   
     dowrites();    
   }
 
-  Blynk.run();
-  ble.poll();
+  blePeripheral.poll();  
 }
 
 void dowrites() {  

@@ -12,3 +12,4 @@ const uint8_t PROGMEM anim[] = {  0X00, 0X8F, 0X00, 0X00, 0X00, 0X00, 0X00, 0X00
 // 293 bytes
 
 const uint8_t PROGMEM syntax[] = { 1,2,3, };
+

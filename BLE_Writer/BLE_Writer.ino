@@ -1,10 +1,14 @@
 
 //Leave these at the top, becase C++.
 #define BLYNK_DEBUG
+#define BLYNK_DEBUG_ALL
 #define BLYNK_PRINT Serial
 #define BLYNK_USE_DIRECT_CONNECT
 
-#define DBG_ENABLE      1
+//Make the performance suck
+//#define BLYNK_MSG_LIMIT 5
+
+#define DBG_ENABLE 1
 
 #include <SoftwareSerial.h>
 
@@ -22,7 +26,7 @@
 
 // You should get Auth Token in the Blynk App.
 // Go to the Project Settings (nut icon).
-char auth[] = "9aef6a9e386b49a98013b6fb364cc0db";
+char auth[] = "570529042ad34219a964929e2a483f40";
 
 //===============
 // BLE setup
@@ -33,12 +37,14 @@ char auth[] = "9aef6a9e386b49a98013b6fb364cc0db";
 #define BLUEFRUIT_SPI_IRQ              7
 #define BLUEFRUIT_SPI_RST              4    // Optional but recommended, set to -1 if unused
 #define BLUEFRUIT_VERBOSE_MODE         true
+#define BLYNK_MSG_LIMIT                5
+#define BLE_SERIAL_DEBUG               true
 
 Adafruit_BluefruitLE_SPI ble(BLUEFRUIT_SPI_CS, BLUEFRUIT_SPI_IRQ, BLUEFRUIT_SPI_RST);
 
 
-#define INTERVAL 5000
-#define POLL_INTERVAL 1000
+#define INTERVAL 3000
+
 int thevalue;
 long previousMillis;
 long previousPollMillis;
@@ -52,11 +58,16 @@ void setup() {
   ble.factoryReset(); //Optional  
   ble.echo(true);
   ble.info();
+  ble.println("ATE=1");
+  // Check response status
+  ble.waitForOK();  
   ble.setMode(BLUEFRUIT_MODE_DATA);   
-  previousMillis = 0; //force an initial publish
-  previousPollMillis = 0;
+  
+  unsigned long currentMillis = millis();  //0; //force an initial publish
+  previousMillis = currentMillis;
+  previousPollMillis = currentMillis;
 
-  Blynk.begin(auth, ble);
+  Blynk.begin(ble, auth);
 }
 
 void pollBLE() {
@@ -73,19 +84,20 @@ BLYNK_WRITE(V10) //Random
   Serial.println(pinData);
 }
 
+BLYNK_WRITE(V9) //psuedo echo
+{
+  Blynk.virtualWrite(V8, param.asInt());
+}
+
 void loop() {
-  unsigned long currentMillis = millis();  
+
+  Blynk.run();
+  
+  unsigned long currentMillis = millis();    
   if(currentMillis - previousMillis > INTERVAL) {
     previousMillis = currentMillis;   
     dowrites();    
-  }
-  /*
-  if(currentMillis - previousPollMillis > POLL_INTERVAL) {
-    previousPollMillis = currentMillis;   
-    pollBLE();    
   }  
-  */
-  Blynk.run();
 }
 
 void dowrites() {
@@ -97,14 +109,6 @@ void dowrites() {
   Blynk.virtualWrite(V2, thevalue);  
   Blynk.virtualWrite(V3, thevalue); 
   
-  for(int i = 0; i < 4; i++)
-  {
-    ble.print("This is value: ");
-    Serial.print("This is value: ");
-    ble.println(thevalue);
-    Serial.println( thevalue);
-  }
-  
-  ble.flush(); 
+  //ble.flush(); 
 }
 

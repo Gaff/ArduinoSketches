@@ -16,11 +16,10 @@
 //--------------------------------------------------------------------------
 
 #include <Wire.h>           // For I2C communication
-#include "eyes.h"           // Flame animation data
 #include "eyes2.h"           // Flame animation data
-//#include "data.h"
 //#include <avr/power.h>      // Peripheral control and
 //#include <avr/sleep.h>      // sleep to minimize current draw
+#include "firependant.h"
 
 #define LEFT_I2C_ADDR 0x74       // I2C address of Charlieplex matrix
 #define RIGHT_I2C_ADDR 0x75       // I2C address of Charlieplex matrix
@@ -28,8 +27,9 @@
 #define WIDTH 16
 #define HEIGHT 9
 
+typedef uint8_t(*datafunctype)(int);
+
 uint8_t        page = 0;    // Front/back buffer control
-const uint8_t *ptr  = anim; // Current pointer into animation data
 uint8_t        img_buff[WIDTH * HEIGHT]; // Buffer for rendering image
 
 // UTILITY FUNCTIONS -------------------------------------------------------
@@ -53,34 +53,39 @@ void pageSelect(uint8_t addr, uint8_t n) {
   Wire.endTransmission();
 }
 
-void readframe(uint8_t frame, uint8_t *img) {
+struct DirectReadImage : public Image {
+  int frame;
+  bool flip;
+  DirectReadImage(int frame) : frame(frame), flip(false){}
+  virtual uint8_t getPixel(uint8_t x, uint8_t y) {
+    int yoff;
+    if(flip)
+      yoff = WIDTH - y;
+    else
+      yoff = y;
+    return pgm_read_byte(frames[frame] + x*WIDTH + yoff);
+  }
+};
+
+void readframe(uint8_t frame, uint8_t *img, bool flip) {
 
   const uint8_t *ptr  = frames[frame];
-  
-  for (uint8_t x = 0; x < WIDTH * HEIGHT; x++ ) {
-    img[x] = pgm_read_byte(ptr++);
-  }
-  
-    /*
-  // Then render NEXT frame.  Start by getting bounding rect for new frame:
-  a = pgm_read_byte(ptr++);     // New frame X1/Y1
-  if(a >= 0x90) {               // EOD marker? (valid X1 never exceeds 8)
-    ptr = anim;                 // Reset animation data pointer to start
-    a   = pgm_read_byte(ptr++); // and take first value
-  }
-  x1 = a >> 4;                  // X1 = high 4 bits
-  y1 = a & 0x0F;                // Y1 = low 4 bits
-  a  = pgm_read_byte(ptr++);    // New frame X2/Y2
-  x2 = a >> 4;                  // X2 = high 4 bits
-  y2 = a & 0x0F;                // Y2 = low 4 bits
 
-  // Read rectangle of data from anim[] into portion of img[] buffer
-  for(x=x1; x<=x2; x++) { // Column-major
-    for(y=y1; y<=y2; y++) img[(x << 4) + y] = pgm_read_byte(ptr++);
-  }*/
+  for(uint8_t x=0; x<HEIGHT; x++) { 
+    int offset = x*WIDTH;   
+    for(uint8_t y=0; y<WIDTH; y++) {
+      int yoffset;
+      if(flip) {
+        yoffset = y;
+      } else {
+        yoffset = WIDTH-y;
+      }
+      img[offset+y] = pgm_read_byte(ptr+offset+yoffset);
+    }
+  }
 }
 
-void writeframe(const uint8_t addr, uint8_t page, uint8_t *img) {
+void writeframe(const uint8_t addr, uint8_t page, Image &img) {
   
   // Write img[] to matrix (not actually displayed until next pass)
   pageSelect(addr, page);    // Select background buffer
@@ -88,8 +93,10 @@ void writeframe(const uint8_t addr, uint8_t page, uint8_t *img) {
   uint8_t i = 0, byteCounter = 1;
   for(uint8_t x=0; x<9; x++) {
     for(uint8_t y=0; y<16; y++) {
-      Wire.write(img[i++]);      // Write each byte to matrix
+      Wire.write(img.getPixel(x, y));      // Write each byte to matrix
+      i++;
       if(++byteCounter >= 32) {  // Every 32 bytes...
+        byteCounter = 1;
         Wire.endTransmission();  // end transmission and
         writeRegister(addr, 0x24 + i); // start a new one (Wire lib limits)
       }
@@ -108,7 +115,7 @@ void clearScreen(const uint8_t addr) {
   for(p=0; p<8; p++) {                     // For each page used (0 & 1)...
     pageSelect(addr, p);                         // Access the Frame Registers
     writeRegister(addr, 0);                      // Start from 1st LED control reg
-    for(i=0; i<18; i++) Wire.write(0xFF);  // Enable all LEDs (18*8=144)
+    for(i=0; i<18; i++) Wire.write(0xFF);  // Enable all LEDs (18*8=144)    
     for(byteCounter = i+1; i<0xB4; i++) {  // For blink & PWM registers...
       Wire.write(0);                       // Clear all
       if(++byteCounter >= 32) {            // Every 32 bytes...
@@ -155,45 +162,86 @@ void setup() {
   clearScreen(LEFT_I2C_ADDR);
   clearScreen(RIGHT_I2C_ADDR);
 
-  readframe(4, &img_buff[0]);
-  writeframe(LEFT_I2C_ADDR, 1, &img_buff[0]);
-  writeframe(RIGHT_I2C_ADDR, 1, &img_buff[0]);
+  DirectReadImage img(4);
+
+  writeframe(RIGHT_I2C_ADDR, 1, img);
+  img.flip = true;
+  writeframe(LEFT_I2C_ADDR, 1, img);  
   
-  //displayPage(LEFT_I2C_ADDR, 1);
-  displayPage(RIGHT_I2C_ADDR, 1);
-  delay(2000);
+  
   displayPage(LEFT_I2C_ADDR, 1);
-  
-  // Enable the watchdog timer, set to a ~32 ms interval (about 31 Hz)
-  // This provides a sufficiently steady time reference for animation,
-  // allows timer/counter peripherals to remain off (for power saving)
-  // and can power-down the chip after processing each frame.
-  //set_sleep_mode(SLEEP_MODE_PWR_DOWN); // Deepest sleep mode (WDT wakes)
-  //noInterrupts();
-  //MCUSR  &= ~_BV(WDRF);
-  //WDTCSR  =  _BV(WDCE) | _BV(WDE);     // WDT change enable
-  //WDTCSR  =  _BV(WDIE) | _BV(WDP0);    // Interrupt enable, ~32 ms
-  //interrupts();
-  // Peripheral and sleep savings only amount to about 10 mA, but this
-  // may provide nearly an extra hour of run time before battery depletes.
+  displayPage(RIGHT_I2C_ADDR, 1);
+}
+
+//Eye moving center > in: 4 > 3 > 1 > 0
+//Eye moving in > center: 0 > 1 > 2 > 4
+//Eye moving center > out: 4 > 5 > 6 > 8
+//Eye moving out > center: 8 > 7 > 6 > 4
+uint8_t centre_in_centre[] = {4,3,1,0,0,1,2,4};
+uint8_t centre_out_centre[] = { 4,5,6,8,8,7,6,4};
+
+
+void loadFramesLR(uint8_t left[], uint8_t right[]) {
+  DirectReadImage img(4);
+  for(int i = 0; i < 8; i++ ) {
+    img.frame = left[i];
+    img.flip = true;
+    Serial.print(F("Writing page "));
+    Serial.print(i);
+    Serial.print(F(" "));
+    Serial.print(left[i]);
+    writeframe(LEFT_I2C_ADDR, i, img);    
+    img.frame = right[i];
+    img.flip = false;
+    writeframe(RIGHT_I2C_ADDR, i, img);            
+  }
+}
+
+
+void loadFrames() {  
+
+  Serial.println(F("Loading frames.."));  
+  int anim = random(3);
+
+  switch(anim) {
+    case 0: //stare
+      loadFramesLR(centre_in_centre, centre_in_centre);      
+      break;
+    case 1: //left
+      loadFramesLR(centre_in_centre, centre_out_centre);
+      break;      
+    case 2: //right
+      loadFramesLR(centre_out_centre, centre_in_centre);
+      break;
+  }
 }
 
 // LOOP FUNCTION - RUNS EVERY FRAME ----------------------------------------
 
+
 uint8_t framep = 0;
-bool dir = true;
 unsigned long fc = 0;
 
-//uint8_t frameorder[] = {0,1,2,3,4,5,6,7,8,8,8,8,8,8,7,6,5,4,3,2,1,0,0,0,0,0,0};
-uint8_t frameorder[] = {4,4,4,4,5,6,8,8,8,8,7,6,4,4,4,4,4,4,4,4,4,4,4,4,3,1,0,0,0,0,1,2,4,4,4,4};
-
 void loop() {
-  
+
+  if(framep == 0) {
+    loadFrames();
+    delay(2000);
+  }  
+
+  displayPage(LEFT_I2C_ADDR, framep);
+  displayPage(RIGHT_I2C_ADDR, framep);
+  delay(50);
+
+  framep++;
+  if(framep > 7) framep = 0;
+
 }
-  
-void loopx() {
+
+  /*
+void loop() {
   uint8_t frame = 0;
-  frame = frameorder[framep];
+  frame = centre_in_centre[framep];
   framep++;
   if(framep / sizeof(frameorder)) framep = 0;
   
@@ -214,11 +262,11 @@ void loopx() {
   
   page ^= 1; // Flip front/back buffer index  
 
-  readframe(frame, &img_buff[0]);
-  writeframe(LEFT_I2C_ADDR, page, &img_buff[0]);
-  writeframe(RIGHT_I2C_ADDR, page, &img_buff[0]);
 
-
+  DirectReadImage img(frame);  
+  writeframe(RIGHT_I2C_ADDR, page, img);
+  img.flip = true;
+  writeframe(LEFT_I2C_ADDR, page, img);  
 
 
   //power_twi_disable(); // I2C off (see comment at top of function)
@@ -227,8 +275,7 @@ void loopx() {
   //sleep_mode();        // Power-down MCU.
   // Code will resume here on wake; loop() returns and is called again
 
-}
-
+}*/
 
 
 //ISR(WDT_vect) { } // Watchdog timer interrupt (does nothing, but required)
