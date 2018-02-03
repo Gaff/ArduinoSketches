@@ -1,5 +1,1 @@
-class Image {
-public:
-  virtual uint8_t getPixel(uint8_t x, uint8_t y);
-};
-
+typedef img_buff[WIDTH * HEIGHT] imgarray_t;

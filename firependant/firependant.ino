@@ -16,21 +16,21 @@
 //--------------------------------------------------------------------------
 
 #include <Wire.h>           // For I2C communication
-#include "eyes2.h"           // Flame animation data
+#include "eyesdata.h"           // Flame animation data
 //#include <avr/power.h>      // Peripheral control and
 //#include <avr/sleep.h>      // sleep to minimize current draw
-#include "firependant.h"
+//#include "firependant.h"
 
 #define LEFT_I2C_ADDR 0x74       // I2C address of Charlieplex matrix
 #define RIGHT_I2C_ADDR 0x75       // I2C address of Charlieplex matrix
 
 #define WIDTH 16
 #define HEIGHT 9
-
-typedef uint8_t(*datafunctype)(int);
+typedef struct imgarray_t { uint8_t d[WIDTH * HEIGHT]; } imgarray_t;
 
 uint8_t        page = 0;    // Front/back buffer control
-uint8_t        img_buff[WIDTH * HEIGHT]; // Buffer for rendering image
+//It's possible with some functional magic to do away with this buffer, but life is much simpler with it.
+imgarray_t     img; // Buffer for rendering image
 
 // UTILITY FUNCTIONS -------------------------------------------------------
 
@@ -53,21 +53,7 @@ void pageSelect(uint8_t addr, uint8_t n) {
   Wire.endTransmission();
 }
 
-struct DirectReadImage : public Image {
-  int frame;
-  bool flip;
-  DirectReadImage(int frame) : frame(frame), flip(false){}
-  virtual uint8_t getPixel(uint8_t x, uint8_t y) {
-    int yoff;
-    if(flip)
-      yoff = WIDTH - y;
-    else
-      yoff = y;
-    return pgm_read_byte(frames[frame] + x*WIDTH + yoff);
-  }
-};
-
-void readframe(uint8_t frame, uint8_t *img, bool flip) {
+void loadframe(uint8_t frame, imgarray_t &img, bool flip) {
 
   const uint8_t *ptr  = frames[frame];
 
@@ -80,12 +66,12 @@ void readframe(uint8_t frame, uint8_t *img, bool flip) {
       } else {
         yoffset = WIDTH-y;
       }
-      img[offset+y] = pgm_read_byte(ptr+offset+yoffset);
+      img.d[offset+y] = pgm_read_byte(ptr+offset+yoffset);
     }
   }
 }
 
-void writeframe(const uint8_t addr, uint8_t page, Image &img) {
+void writeframe(const uint8_t addr, uint8_t page, imgarray_t &img) {
   
   // Write img[] to matrix (not actually displayed until next pass)
   pageSelect(addr, page);    // Select background buffer
@@ -93,7 +79,7 @@ void writeframe(const uint8_t addr, uint8_t page, Image &img) {
   uint8_t i = 0, byteCounter = 1;
   for(uint8_t x=0; x<9; x++) {
     for(uint8_t y=0; y<16; y++) {
-      Wire.write(img.getPixel(x, y));      // Write each byte to matrix
+      Wire.write(img.d[i]);      // Write each byte to matrix
       i++;
       if(++byteCounter >= 32) {  // Every 32 bytes...
         byteCounter = 1;
@@ -162,12 +148,12 @@ void setup() {
   clearScreen(LEFT_I2C_ADDR);
   clearScreen(RIGHT_I2C_ADDR);
 
-  DirectReadImage img(4);
+  int frame = 4;
 
-  writeframe(RIGHT_I2C_ADDR, 1, img);
-  img.flip = true;
+  loadframe(frame, img, false);
   writeframe(LEFT_I2C_ADDR, 1, img);  
-  
+  loadframe(frame, img, true);
+  writeframe(RIGHT_I2C_ADDR, 1, img);  
   
   displayPage(LEFT_I2C_ADDR, 1);
   displayPage(RIGHT_I2C_ADDR, 1);
@@ -181,14 +167,11 @@ uint8_t centre_in_centre[] = {4,3,1,0,0,1,2,4};
 uint8_t centre_out_centre[] = { 4,5,6,8,8,7,6,4};
 
 
-void loadFramesLR(uint8_t left[], uint8_t right[]) {
-  DirectReadImage img(4);
+void loadFramesLR(uint8_t left[], uint8_t right[]) {  
   for(int i = 0; i < 8; i++ ) {
-    img.frame = left[i];
-    img.flip = true;    
+    loadframe(left[i], img, false);
     writeframe(LEFT_I2C_ADDR, i, img);    
-    img.frame = right[i];
-    img.flip = false;
+    loadframe(right[i], img, true);
     writeframe(RIGHT_I2C_ADDR, i, img);            
   }
 }
@@ -211,6 +194,8 @@ void loadFrames() {
   }
 }
 
+
+//void loop() {}
 // LOOP FUNCTION - RUNS EVERY FRAME ----------------------------------------
 
 
