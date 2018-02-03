@@ -266,15 +266,14 @@ void loadFrames() {
     case 3: //blink
       loadFramesBlink(natural_blink);
       break;   
-    case 4:
-      g_anim = 255; //so we can roll over
-      break;
     case 200: //stare
       loadFramesLR(centre_in_centre, centre_in_centre);      
       break;
          
-  }
+  }  
   g_anim++;
+  if(g_anim == 4)
+    g_anim = 0;
 }
 
 
