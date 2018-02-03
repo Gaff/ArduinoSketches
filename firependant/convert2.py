@@ -5,6 +5,7 @@ import sys
 
 HEIGHT = 9
 row = 0;
+gamma = 2.7;
 
 filename = sys.argv[1]
 
@@ -25,6 +26,7 @@ while(row < image.size[1]):
     for y in range(HEIGHT):
         for x in range(image.size[0]):
             n = image.pixels[x, row]
+            n = int(pow((n / 255.0), gamma) * 255.0 + 0.5)
             sys.stdout.write("{0:#0{1}X},".format(n, 4))
         row = row+1
     sys.stdout.write("},\n")

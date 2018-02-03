@@ -26,7 +26,17 @@
 
 #define WIDTH 16
 #define HEIGHT 9
+
+uint8_t     global_brightness = 128;
+
 typedef struct imgarray_t { uint8_t d[WIDTH * HEIGHT]; } imgarray_t;
+typedef struct ImageLoad{
+  uint8_t frame;
+  bool flip;  
+  uint8_t blinkframe;
+
+  ImageLoad(int frame, bool flip):frame(frame),flip(flip),blinkframe(0){};
+};
 
 uint8_t        page = 0;    // Front/back buffer control
 //It's possible with some functional magic to do away with this buffer, but life is much simpler with it.
@@ -53,7 +63,7 @@ void pageSelect(uint8_t addr, uint8_t n) {
   Wire.endTransmission();
 }
 
-void loadframe(uint8_t frame, imgarray_t &img, bool flip) {
+void loadframe_raw(uint8_t frame, imgarray_t &img, bool flip) {
 
   const uint8_t *ptr  = frames[frame];
 
@@ -66,9 +76,24 @@ void loadframe(uint8_t frame, imgarray_t &img, bool flip) {
       } else {
         yoffset = WIDTH-y;
       }
-      img.d[offset+y] = pgm_read_byte(ptr+offset+yoffset);
+      img.d[offset+y] = pgm_read_byte(ptr+offset+yoffset);     
     }
   }
+}
+
+void apply_brightness(imgarray_t &img) {
+  //Copied from Adafruit's neopixel library - I'm that lazy!
+  if(global_brightness == 0)
+    return;
+  
+  for(uint8_t x=0; x<HEIGHT*WIDTH; x++) {
+    img.d[x] = (img.d[x] * global_brightness) >> 8;
+  }
+}
+
+void loadframe(ImageLoad &l, imgarray_t &img) {
+    loadframe_raw(l.frame, img, l.flip);
+    apply_brightness(img);
 }
 
 void writeframe(const uint8_t addr, uint8_t page, imgarray_t &img) {
@@ -148,11 +173,11 @@ void setup() {
   clearScreen(LEFT_I2C_ADDR);
   clearScreen(RIGHT_I2C_ADDR);
 
-  int frame = 4;
-
-  loadframe(frame, img, false);
+  ImageLoad il(4, false);
+  loadframe(il, img);
   writeframe(LEFT_I2C_ADDR, 1, img);  
-  loadframe(frame, img, true);
+  il.flip = true;
+  loadframe(il, img);
   writeframe(RIGHT_I2C_ADDR, 1, img);  
   
   displayPage(LEFT_I2C_ADDR, 1);
@@ -164,14 +189,20 @@ void setup() {
 //Eye moving center > out: 4 > 5 > 6 > 8
 //Eye moving out > center: 8 > 7 > 6 > 4
 uint8_t centre_in_centre[] = {4,3,1,0,0,1,2,4};
-uint8_t centre_out_centre[] = { 4,5,6,8,8,7,6,4};
+uint8_t centre_out_centre[] = {4,5,6,8,8,7,6,4};
 
 
 void loadFramesLR(uint8_t left[], uint8_t right[]) {  
-  for(int i = 0; i < 8; i++ ) {
-    loadframe(left[i], img, false);
+  ImageLoad il(4, false);
+  for(int i = 0; i < 8; i++ ) {  
+    il.frame = left[i];
+    loadframe(il, img);
     writeframe(LEFT_I2C_ADDR, i, img);    
-    loadframe(right[i], img, true);
+  }
+  il.flip = true;
+  for(int i =0; i < 8; i++) {
+    il.frame = right[i];
+    loadframe(il, img);
     writeframe(RIGHT_I2C_ADDR, i, img);            
   }
 }
