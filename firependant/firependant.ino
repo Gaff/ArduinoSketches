@@ -91,9 +91,28 @@ void apply_brightness(imgarray_t &img) {
   }
 }
 
+void apply_blinkmask(uint8_t frame, imgarray_t &img, bool flip) {
+  const uint8_t *ptr  = blinkmask[frame];
+  for(uint8_t x=0; x<HEIGHT; x++) { 
+    int offset = x*WIDTH;   
+    for(uint8_t y=0; y<WIDTH; y++) {
+      int yoffset;
+      if(flip) {
+        yoffset = y;
+      } else {
+        yoffset = WIDTH-y;
+      }
+      img.d[offset+y] = min(img.d[offset+y], pgm_read_byte(ptr+offset+yoffset));
+    }
+  }
+}
+
 void loadframe(ImageLoad &l, imgarray_t &img) {
     loadframe_raw(l.frame, img, l.flip);
     apply_brightness(img);
+    if(l.blinkframe > 0) {
+      apply_blinkmask(l.blinkframe, img, l.flip);
+    }
 }
 
 void writeframe(const uint8_t addr, uint8_t page, imgarray_t &img) {
@@ -207,22 +226,55 @@ void loadFramesLR(uint8_t left[], uint8_t right[]) {
   }
 }
 
+//Slow eye close: 0,1,2,3,4
+//Slow eye open: 4,3,2,1,0
+//Intentional blink: 0,2,4,2,0
+//Natural blink: 0,3,4,3,0
+uint8_t slow_blink[] = {1,2,3,4,3,2,1,0};
+uint8_t natural_blink[] = {3,4,3,0,3,4,3,0};
+
+void loadFramesBlink(uint8_t *blinkmask) {
+  ImageLoad il(4, false);  
+  for(int i =0; i < 8; i++) {
+    il.blinkframe = blinkmask[i];
+    il.flip = false;
+    loadframe(il, img);
+    writeframe(LEFT_I2C_ADDR, i, img); 
+    il.flip = true;
+    loadframe(il, img);
+    writeframe(RIGHT_I2C_ADDR, i, img);            
+  }
+}
+
+int g_anim = 0;
 
 void loadFrames() {  
-  int anim = random(2);
+  //int anim = random(3);
+  int anim = g_anim;
   Serial.print(F("Loading animation "));  
   Serial.println(anim);  
   switch(anim) {
-    case 0: //left
+    case 0: //right
       loadFramesLR(centre_in_centre, centre_out_centre);
       break;      
-    case 1: //right
+    case 1: //left
       loadFramesLR(centre_out_centre, centre_in_centre);
       break;
-    case 2: //stare
+    case 2: //slow blink
+      loadFramesBlink(slow_blink);
+      break;
+    case 3: //blink
+      loadFramesBlink(natural_blink);
+      break;   
+    case 4:
+      g_anim = 255; //so we can roll over
+      break;
+    case 200: //stare
       loadFramesLR(centre_in_centre, centre_in_centre);      
       break;
+         
   }
+  g_anim++;
 }
 
 
