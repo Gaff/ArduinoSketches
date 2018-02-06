@@ -34,8 +34,9 @@ typedef struct ImageLoad{
   uint8_t frame;
   bool flip;  
   uint8_t blinkframe;
+  uint8_t brightness;
 
-  ImageLoad(int frame, bool flip):frame(frame),flip(flip),blinkframe(0){};
+  ImageLoad(int frame, bool flip):frame(frame),flip(flip),blinkframe(0), brightness(global_brightness){};
 };
 
 uint8_t        page = 0;    // Front/back buffer control
@@ -81,13 +82,13 @@ void loadframe_raw(uint8_t frame, imgarray_t &img, bool flip) {
   }
 }
 
-void apply_brightness(imgarray_t &img) {
+void apply_brightness(imgarray_t &img, uint8_t brightness) {
   //Copied from Adafruit's neopixel library - I'm that lazy!
-  if(global_brightness == 0)
+  if(brightness == 0)
     return;
   
   for(uint8_t x=0; x<HEIGHT*WIDTH; x++) {
-    img.d[x] = (img.d[x] * global_brightness) >> 8;
+    img.d[x] = (img.d[x] * brightness) >> 8;
   }
 }
 
@@ -109,7 +110,7 @@ void apply_blinkmask(uint8_t frame, imgarray_t &img, bool flip) {
 
 void loadframe(ImageLoad &l, imgarray_t &img) {
     loadframe_raw(l.frame, img, l.flip);
-    apply_brightness(img);
+    apply_brightness(img, l.brightness);
     if(l.blinkframe > 0) {
       apply_blinkmask(l.blinkframe, img, l.flip);
     }
@@ -232,6 +233,7 @@ void loadFramesLR(uint8_t left[], uint8_t right[]) {
 //Natural blink: 0,3,4,3,0
 uint8_t slow_blink[] = {1,2,3,4,3,2,1,0};
 uint8_t natural_blink[] = {3,4,3,0,3,4,3,0};
+uint8_t natural_blink_single[] = {3,4,3,0,0,0,0,0};
 
 void loadFramesBlink(uint8_t *blinkmask) {
   ImageLoad il(4, false);  
@@ -246,7 +248,22 @@ void loadFramesBlink(uint8_t *blinkmask) {
   }
 }
 
-int g_anim = 0;
+
+uint8_t glare[] = {100,0,0,100,0,100,100,0};
+void loadFramesGlare() {
+  ImageLoad il(4, false);  
+  for(int i =0; i < 8; i++) {
+    il.brightness = map(glare[i],0,100,global_brightness,255);
+    il.flip = false;
+    loadframe(il, img);
+    writeframe(LEFT_I2C_ADDR, i, img); 
+    il.flip = true;
+    loadframe(il, img);
+    writeframe(RIGHT_I2C_ADDR, i, img);            
+  }
+}
+
+int g_anim = 3;
 
 void loadFrames() {  
   //int anim = random(3);
@@ -266,13 +283,16 @@ void loadFrames() {
     case 3: //blink
       loadFramesBlink(natural_blink);
       break;   
+    case 4: //Glare
+      loadFramesGlare();
+      break;
     case 200: //stare
       loadFramesLR(centre_in_centre, centre_in_centre);      
       break;
          
   }  
   g_anim++;
-  if(g_anim == 4)
+  if(g_anim == 5)
     g_anim = 0;
 }
 
