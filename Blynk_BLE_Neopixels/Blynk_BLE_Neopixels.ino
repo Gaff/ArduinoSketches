@@ -203,6 +203,11 @@ void render() {
     case 6:
       render_fairy(c);
       break;
+    case 7:
+      render_heartbeat(c);
+      break;
+    case 8:
+      render_breathe(c);
   }
 }
 
@@ -215,7 +220,45 @@ void render_fill(CHSV c) {
 }
 
 void render_wave(CHSV c) {
-  int b = beatsin8(g_tickspeed);
+  uint16_t  b = beatsin8(g_tickspeed);
+  if( b < g_wash) b = g_wash;
+  //Serial.print(F("Beat: ")); Serial.println(b);
+  fill_solid( g_leds, NUM_LEDS, CHSV( c.h, c.s, b ) );
+}
+
+void render_breathe(CHSV c) {  
+  uint16_t b = beat16(g_tickspeed);  
+  Serial.print("Beat: ");Serial.print(b);
+  if(b>49129) {
+    //waning
+    b = map(b, 49129, 65535, 255, 0);
+  }
+  else if(b>32766) {
+    b = 255;
+  }
+  else if(b>16383) {
+    b = map(b, 16383, 32766, 0, 256);
+  } 
+  else {
+    b = 0;  
+  }
+
+  Serial.print(" ");Serial.println(b);
+      
+  if( b < g_wash) b = g_wash;
+  //Serial.print(F("Beat: ")); Serial.println(b);
+  fill_solid( g_leds, NUM_LEDS, CHSV( c.h, c.s, b ) );
+}
+
+void render_heartbeat(CHSV c) {  
+  uint16_t b = beat16(g_tickspeed);
+  
+  if( b > 53247 ) {    
+    int t = map(b, 53247, 65535, 0, 128);
+    b = sin8(t);
+  } else 
+    b = 0;
+    
   if( b < g_wash) b = g_wash;
   //Serial.print(F("Beat: ")); Serial.println(b);
   fill_solid( g_leds, NUM_LEDS, CHSV( c.h, c.s, b ) );
