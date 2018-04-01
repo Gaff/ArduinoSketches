@@ -27,7 +27,9 @@
 #define WIDTH 16
 #define HEIGHT 9
 
-uint8_t     global_brightness = 128;
+//#define FRAME_TEST_MODE true
+
+uint8_t     global_brightness = 100;
 
 typedef struct imgarray_t { uint8_t d[WIDTH * HEIGHT]; } imgarray_t;
 typedef struct ImageLoad{
@@ -64,20 +66,27 @@ void pageSelect(uint8_t addr, uint8_t n) {
   Wire.endTransmission();
 }
 
+//For people who mount the goggles upside down :(
+#define FLIP_VERTICAL
+
 void loadframe_raw(uint8_t frame, imgarray_t &img, bool flip) {
 
   const uint8_t *ptr  = frames[frame];
 
   for(uint8_t x=0; x<HEIGHT; x++) { 
-    int offset = x*WIDTH;   
+#ifdef FLIP_VERTICAL
+    int offset = (HEIGHT-x-1)*WIDTH;       
+#else
+    int offset = x*WIDTH;
+#endif
     for(uint8_t y=0; y<WIDTH; y++) {
       int yoffset;
       if(flip) {
         yoffset = y;
       } else {
-        yoffset = WIDTH-y;
+        yoffset = WIDTH-y-1;
       }
-      img.d[offset+y] = pgm_read_byte(ptr+offset+yoffset);     
+      img.d[x*WIDTH+y] = pgm_read_byte(ptr+offset+yoffset);     
     }
   }
 }
@@ -95,15 +104,19 @@ void apply_brightness(imgarray_t &img, uint8_t brightness) {
 void apply_blinkmask(uint8_t frame, imgarray_t &img, bool flip) {
   const uint8_t *ptr  = blinkmask[frame];
   for(uint8_t x=0; x<HEIGHT; x++) { 
-    int offset = x*WIDTH;   
+#ifdef FLIP_VERTICAL
+    int offset = (HEIGHT-x-1)*WIDTH;       
+#else
+    int offset = x*WIDTH;
+#endif 
     for(uint8_t y=0; y<WIDTH; y++) {
       int yoffset;
       if(flip) {
         yoffset = y;
       } else {
-        yoffset = WIDTH-y;
+        yoffset = (WIDTH-y-1);
       }
-      img.d[offset+y] = min(img.d[offset+y], pgm_read_byte(ptr+offset+yoffset));
+      img.d[x*WIDTH+y] = min(img.d[x*WIDTH+y], pgm_read_byte(ptr+offset+yoffset));
     }
   }
 }
@@ -193,6 +206,7 @@ void setup() {
   clearScreen(LEFT_I2C_ADDR);
   clearScreen(RIGHT_I2C_ADDR);
 
+/*
   ImageLoad il(4, false);
   loadframe(il, img);
   writeframe(LEFT_I2C_ADDR, 1, img);  
@@ -202,6 +216,8 @@ void setup() {
   
   displayPage(LEFT_I2C_ADDR, 1);
   displayPage(RIGHT_I2C_ADDR, 1);
+  
+  */
 }
 
 //Eye moving center > in: 4 > 3 > 1 > 0
@@ -263,9 +279,11 @@ void loadFramesGlare() {
   }
 }
 
+//------------- Test Mode ---------------
+
 int g_anim = 3;
 
-void loadFrames() {  
+void loadFramesTest() {  
   //int anim = random(3);
   int anim = g_anim;
   Serial.print(F("Loading animation "));  
@@ -286,9 +304,11 @@ void loadFrames() {
     case 4: //Glare
       loadFramesGlare();
       break;
+      /*
     case 200: //stare
       loadFramesLR(centre_in_centre, centre_in_centre);      
       break;
+      */
          
   }  
   g_anim++;
@@ -296,8 +316,31 @@ void loadFrames() {
     g_anim = 0;
 }
 
+//------------- Random Mode ---------------
 
-//void loop() {}
+void loadFrames() {  
+  int anim = random(3);
+  
+  Serial.print(F("Loading animation "));  
+  Serial.println(anim);  
+  switch(anim) {
+    case 0: //right
+      loadFramesLR(centre_in_centre, centre_out_centre);
+      break;      
+    case 1: //left
+      loadFramesLR(centre_out_centre, centre_in_centre);
+      break;
+    case 2: //slow blink
+      loadFramesBlink(slow_blink);
+      break;
+    case 3: //blink
+      loadFramesBlink(natural_blink);
+      break;   
+  }  
+
+}
+
+
 // LOOP FUNCTION - RUNS EVERY FRAME ----------------------------------------
 
 
@@ -306,18 +349,32 @@ unsigned long fc = 0;
 
 void loop() {
 
+  //every 8 frames we need to reload
   if(framep == 0) {
+#ifdef FRAME_TEST_MODE    
+    loadFramesTest();
+    int delayR = 2000;
+#else    
     loadFrames();
-    delay(2000);
+    int delayR = random(3000, 10000);
+#endif
+    delay(delayR);
   }  
 
+  //display the next frame on each eye:
   displayPage(LEFT_I2C_ADDR, framep);
   displayPage(RIGHT_I2C_ADDR, framep);
+  
+  //This is the typical delay between each frame.
   delay(50);  
 
   framep++;
-  if(framep == 4)
-    delay(150);
+
+  //Stop for slightly longer at frame 4:
+  if(framep == 4) {
+    int delayR = random(75, 225);
+    delay(delayR);
+  }
   if(framep > 7) framep = 0;
 
 }

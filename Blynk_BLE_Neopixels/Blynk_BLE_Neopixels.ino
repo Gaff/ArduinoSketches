@@ -47,18 +47,18 @@ Adafruit_BluefruitLE_SPI ble(BLUEFRUIT_SPI_CS, BLUEFRUIT_SPI_IRQ, BLUEFRUIT_SPI_
 #define CHIPSET     WS2811
 CRGB g_leds[NUM_LEDS];
 CHSV g_zergba = {33, 255, 255};
-uint8_t g_mode = 2;
-uint8_t g_palletemode = 0;
+uint8_t g_mode = 4;
+uint8_t g_palletemode = 6;
 uint8_t g_tickspeed = 40;
 uint8_t g_length = 5;
 bool g_dir = 1;
-uint8_t g_wash = 0;
+uint8_t g_wash = 10;
 CRGBPalette16 g_palette;
-uint8_t g_paletteratio = 10;
+uint8_t g_paletteratio = 30;
 
 void setup() {
   delay(1500);
-  Serial.begin(115200);
+  Serial.begin(57600);
   Serial.println(F("Blynk for adafruit BLE modules with FAST LED neopixels")); 
   
   ble.begin(BLUEFRUIT_VERBOSE_MODE);   
@@ -66,7 +66,7 @@ void setup() {
   ble.setMode(BLUEFRUIT_MODE_DATA); 
   
   FastLED.addLeds<NEOPIXEL, LED_PIN>(g_leds, NUM_LEDS).setCorrection( TypicalLEDStrip );
-  FastLED.setBrightness(100);
+  FastLED.setBrightness(20);
   fill_solid( g_leds, NUM_LEDS, CRGB::Red );
   //coming in the next version!
   //FastLED.setMaxPowerInVoltsAndMilliamps(5, 500);  
@@ -74,6 +74,7 @@ void setup() {
 
   Serial.println(F("Starting blynk...")); 
   Blynk.begin(auth, ble);
+  Serial.println(F("Connected")); 
 }
 
 /*
@@ -130,7 +131,7 @@ BLYNK_WRITE(V5) //brightness
 {
   int b = param.asInt();
   if(b<0) b = 0;
-  if(b>120) b = 120;
+  if(b>120) b = 100;
   FastLED.setBrightness(b);
 }
 
